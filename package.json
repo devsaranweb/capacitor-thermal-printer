@@ -51,7 +51,8 @@
     "build": "npm run clean && npm run docs && tsc && rollup -c rollup.config.js",
     "clean": "rimraf ./dist",
     "watch": "tsc --watch",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "prepare": "rimraf ./dist && tsc && rollup -c rollup.config.js"
   },
   "devDependencies": {
     "@capacitor/android": "^7.0.0",
