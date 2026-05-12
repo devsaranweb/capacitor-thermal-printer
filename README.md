@@ -29,6 +29,12 @@ npm install capacitor-thermal-printer --save
 npx cap sync
 ```
 
+The plugin now ships a `Package.swift`, so Capacitor 8 apps using Swift Package Manager (`ios/App/CapApp-SPM/Package.swift`) pick it up automatically on `cap sync`. CocoaPods consumers continue to work via the updated `CapacitorThermalPrinter.podspec` (now `vendored_frameworks`).
+
+### iOS device-only (Simulator unsupported)
+
+The bundled RTPrinterSDK is distributed by Rongta as an `arm64` device-only static library, wrapped here as `RTPrinterSDK.xcframework`. The xcframework therefore ships **only the `ios-arm64` slice** — iOS Simulator builds (`arm64-simulator`, `x86_64-simulator`) will fail to link until Rongta publishes a simulator slice. Build, debug, and test the printer on a real iOS device. Web and Android workflows are unaffected.
+
 ### Additional iOS Setup
 
 <img src="./assets/ios-include.png" />

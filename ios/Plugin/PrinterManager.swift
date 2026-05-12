@@ -1,3 +1,7 @@
+#if canImport(RTPrinterSDK)
+import RTPrinterSDK
+#endif
+
 let STATUS_MOVEMENT_ERROR = "Printer movement error";//机芯错误
 let STATUS_PAPER_JAMMED_ERROR = "Paper jammed error";//卡纸
 let STATUS_NO_PAPER_ERROR = "No Paper";//缺纸

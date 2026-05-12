@@ -13,7 +13,8 @@
     "dist/",
     "ios/Plugin/",
     "ios/Bridging-Header.h",
-    "CapacitorThermalPrinter.podspec"
+    "CapacitorThermalPrinter.podspec",
+    "Package.swift"
   ],
   "author": "Malik12tree",
   "license": "MIT",

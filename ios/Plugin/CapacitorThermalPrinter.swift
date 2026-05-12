@@ -1,6 +1,9 @@
 import Foundation
 import Capacitor
 import CoreBluetooth
+#if canImport(RTPrinterSDK)
+import RTPrinterSDK
+#endif
 
 /**
  * Please read the Capacitor iOS Plugin Development Guide
