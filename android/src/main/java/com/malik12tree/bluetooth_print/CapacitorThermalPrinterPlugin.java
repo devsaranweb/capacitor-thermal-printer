@@ -139,14 +139,23 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
         rtPrinter = printerFactory.create();
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            // Classic discovery on API <= 30 returns nothing without a granted
+            // location permission. ACCESS_FINE_LOCATION alone covers the whole
+            // range (it is a superset of ACCESS_COARSE_LOCATION, which is all
+            // API <= 28 needs), so requiring both only fails hosts that declare
+            // just the one the platform actually asks for.
             bluetoothPermissions.add("BLUETOOTH");
             bluetoothPermissions.add("BLUETOOTH_ADMIN");
             bluetoothPermissions.add("ACCESS_FINE_LOCATION");
-            bluetoothPermissions.add("ACCESS_COARSE_LOCATION");
         } else {
+            // API 31+ decouples Bluetooth from location: BLUETOOTH_SCAN declared
+            // with usesPermissionFlags="neverForLocation" is what authorises
+            // discovery. Requiring ACCESS_FINE_LOCATION here breaks every host
+            // that took that route, because a permission scoped to
+            // maxSdkVersion="30" is not declared at all on API 31+ and Capacitor
+            // rejects the call before it ever reaches the adapter.
             bluetoothPermissions.add("BLUETOOTH_CONNECT");
             bluetoothPermissions.add("BLUETOOTH_SCAN");
-            bluetoothPermissions.add("ACCESS_FINE_LOCATION");
         }
 
         Log.d(TAG, "Loading Bluetooth Permissions: " + bluetoothPermissions);
