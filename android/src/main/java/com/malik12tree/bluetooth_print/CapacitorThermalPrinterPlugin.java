@@ -11,7 +11,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.BitmapFactory;
+import android.location.LocationManager;
 import android.os.Build;
+import android.provider.Settings;
 import android.util.Log;
 import androidx.annotation.RequiresApi;
 import com.getcapacitor.JSArray;
@@ -126,8 +128,7 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
             } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
                 notifyListeners("discoveryFinish", null);
                 mBluetoothAdapter.cancelDiscovery();
-                getContext().unregisterReceiver(mBluetoothReceiver);
-                mRegistered = false;
+                unregisterReceiverQuietly();
             }
         }
     }
@@ -165,8 +166,10 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
     protected void handleOnDestroy() {
         super.handleOnDestroy();
 
-        getContext().unregisterReceiver(mBluetoothReceiver);
-        mRegistered = false;
+        // Guarded: with no scan in flight there is no registered receiver, and
+        // an unconditional unregister throws IllegalArgumentException out of
+        // the destroy path.
+        unregisterReceiverQuietly();
 
         PrinterObserverManager.getInstance().remove(this);
     }
@@ -177,24 +180,43 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
         if (!bluetoothCheck(call)) return;
 
         if (mRegistered) {
-            call.reject("Already Scanning!");
-            return;
+            if (mBluetoothAdapter.isDiscovering()) {
+                call.reject("Already Scanning!", "SCAN_ALREADY_RUNNING");
+                return;
+            }
+            // Stale state: the DISCOVERY_FINISHED broadcast was missed (it is
+            // not guaranteed across process churn), so the receiver believes a
+            // scan is running that the adapter says is over. Self-heal instead
+            // of refusing every later scan until an app restart.
+            unregisterReceiverQuietly();
+        }
+
+        // Cancel any discovery in progress — ours from a previous run, another
+        // app's, or the system Bluetooth settings screen's. Starting a new
+        // discovery while one is active is the adapter-busy case where
+        // startDiscovery() answers false with everything else configured right.
+        if (mBluetoothAdapter.isDiscovering()) {
+            mBluetoothAdapter.cancelDiscovery();
         }
 
         devices = new ArrayList<>();
-        boolean success = mBluetoothAdapter.startDiscovery();
-        mRegistered = success;
 
-        if (success) {
-            mBluetoothReceiver = new BluetoothDeviceReceiver();
-            IntentFilter mBluetoothIntentFilter = new IntentFilter();
-            mBluetoothIntentFilter.addAction(BluetoothDevice.ACTION_FOUND);
-            mBluetoothIntentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+        // Register BEFORE starting: discovery can deliver its first results
+        // within milliseconds, and a receiver registered after the fact misses
+        // them. Rolled back below if the start fails.
+        mBluetoothReceiver = new BluetoothDeviceReceiver();
+        IntentFilter mBluetoothIntentFilter = new IntentFilter();
+        mBluetoothIntentFilter.addAction(BluetoothDevice.ACTION_FOUND);
+        mBluetoothIntentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+        getContext().registerReceiver(mBluetoothReceiver, mBluetoothIntentFilter);
+        mRegistered = true;
 
-            getContext().registerReceiver(mBluetoothReceiver, mBluetoothIntentFilter);
+        if (mBluetoothAdapter.startDiscovery()) {
             call.resolve();
         } else {
-            call.reject("Failed to start scan!");
+            unregisterReceiverQuietly();
+            boolean locationOff = Build.VERSION.SDK_INT < Build.VERSION_CODES.S && !isLocationEnabled();
+            call.reject(describeStartScanFailure(locationOff), locationOff ? "SCAN_LOCATION_OFF" : "SCAN_START_FAILED");
         }
     }
 
@@ -203,12 +225,74 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
     public void stopScan(PluginCall call) {
         if (!bluetoothCheck(call)) return;
 
-        boolean success = mBluetoothAdapter.cancelDiscovery();
+        if (!mBluetoothAdapter.isDiscovering()) {
+            // Nothing to cancel — the scan already ended (or never started).
+            // If our receiver is still registered no FINISHED broadcast is
+            // coming, so emit the completion + clean up ourselves; either way
+            // this is a success, not "Failed to stop scan!".
+            if (mRegistered) {
+                notifyListeners("discoveryFinish", null);
+                unregisterReceiverQuietly();
+            }
+            call.resolve();
+            return;
+        }
 
-        if (success) {
+        if (mBluetoothAdapter.cancelDiscovery()) {
+            // The DISCOVERY_FINISHED broadcast fires the listener + cleanup.
             call.resolve();
         } else {
             call.reject("Failed to stop scan!");
+        }
+    }
+
+    /**
+     * Explain a startDiscovery() == false with permissions granted and the
+     * adapter enabled. On Android 11 and below the platform refuses discovery
+     * outright while the system Location Services toggle is OFF
+     * (AdapterService checkCallerHasFineLocation -> blockedByLocationOff), and
+     * that is by far the commonest cause on POS/kitchen tablets — name it so
+     * the operator can fix it. Android 12+ hosts using
+     * BLUETOOTH_SCAN neverForLocation are exempt from that gate.
+     */
+    private String describeStartScanFailure(boolean locationOff) {
+        if (locationOff) {
+            return "Failed to start scan: Location Services are turned OFF. " +
+                "Android requires Location to be ON for Bluetooth discovery on this Android version — " +
+                "enable Location in the device settings and scan again.";
+        }
+        return "Failed to start scan: the Bluetooth adapter refused discovery. " +
+            "Toggle Bluetooth off and on, close the system Bluetooth settings screen, and try again.";
+    }
+
+    /** True when the system Location Services toggle is on (any mode). */
+    private boolean isLocationEnabled() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                LocationManager lm = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+                return lm != null && lm.isLocationEnabled();
+            }
+            int mode = Settings.Secure.getInt(
+                getContext().getContentResolver(),
+                Settings.Secure.LOCATION_MODE,
+                Settings.Secure.LOCATION_MODE_OFF
+            );
+            return mode != Settings.Secure.LOCATION_MODE_OFF;
+        } catch (Exception e) {
+            // Unknown reads as enabled so the generic message is shown rather
+            // than a wrong, specific one.
+            return true;
+        }
+    }
+
+    /** Unregister the discovery receiver if (and only if) it is registered. */
+    private void unregisterReceiverQuietly() {
+        if (!mRegistered) return;
+        mRegistered = false;
+        try {
+            getContext().unregisterReceiver(mBluetoothReceiver);
+        } catch (IllegalArgumentException ignored) {
+            // Already unregistered — nothing to release.
         }
     }
 
@@ -244,6 +328,13 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
         if (address == null) {
             call.reject("Please provide address!");
             return;
+        }
+
+        // Platform guidance: always cancel discovery before an SPP connect —
+        // the two share one radio and a connect issued mid-scan degrades or
+        // drops. Covers hosts that never call stopScan() before connecting.
+        if (mBluetoothAdapter.isDiscovering()) {
+            mBluetoothAdapter.cancelDiscovery();
         }
 
         BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
@@ -648,7 +739,7 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
             return true;
         }
 
-        call.reject("Please enable bluetooth!");
+        call.reject("Please enable bluetooth!", "BLUETOOTH_DISABLED");
         return false;
     }
 
@@ -672,7 +763,7 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
                 call.reject("Bluetooth method doesn't exit?!");
             }
         } else {
-            call.reject("Permission is required to continue!");
+            call.reject("Permission is required to continue!", "PERMISSION_DENIED");
         }
     }
 
