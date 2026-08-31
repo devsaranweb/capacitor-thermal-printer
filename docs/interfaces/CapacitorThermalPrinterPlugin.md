@@ -401,7 +401,7 @@ Sets the placement of following barcode texts.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `placement` | `"both"` \| `"none"` \| `"above"` \| `"below"` | Placement to use. |
+| `placement` | `"none"` \| `"both"` \| `"above"` \| `"below"` | Placement to use. |
 
 #### Returns
 

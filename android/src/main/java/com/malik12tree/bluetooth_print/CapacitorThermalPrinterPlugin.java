@@ -118,13 +118,13 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
                 }
 
                 CapacitorThermalPrinterPlugin.this.notifyListeners(
-                        "discoverDevices",
-                        new JSObject() {
-                            {
-                                put("devices", getJsonDevices());
-                            }
+                    "discoverDevices",
+                    new JSObject() {
+                        {
+                            put("devices", getJsonDevices());
                         }
-                    );
+                    }
+                );
             } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
                 notifyListeners("discoveryFinish", null);
                 mBluetoothAdapter.cancelDiscovery();
@@ -257,12 +257,16 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
      */
     private String describeStartScanFailure(boolean locationOff) {
         if (locationOff) {
-            return "Failed to start scan: Location Services are turned OFF. " +
+            return (
+                "Failed to start scan: Location Services are turned OFF. " +
                 "Android requires Location to be ON for Bluetooth discovery on this Android version — " +
-                "enable Location in the device settings and scan again.";
+                "enable Location in the device settings and scan again."
+            );
         }
-        return "Failed to start scan: the Bluetooth adapter refused discovery. " +
-            "Toggle Bluetooth off and on, close the system Bluetooth settings screen, and try again.";
+        return (
+            "Failed to start scan: the Bluetooth adapter refused discovery. " +
+            "Toggle Bluetooth off and on, close the system Bluetooth settings screen, and try again."
+        );
     }
 
     /** True when the system Location Services toggle is on (any mode). */
@@ -301,17 +305,20 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
         boolean state = rtPrinter.getConnectState() == ConnectStateEnum.Connected;
 
         if (state) {
-            rtPrinter.writeMsg(new byte[]{});
+            rtPrinter.writeMsg(new byte[] {});
 
             state = rtPrinter.getConnectState() == ConnectStateEnum.Connected;
         }
 
         boolean finalState = state;
-        call.resolve(new JSObject() {{
-            put("state", finalState);
-        }});
+        call.resolve(
+            new JSObject() {
+                {
+                    put("state", finalState);
+                }
+            }
+        );
     }
-
 
     private PluginCall currentConnectCallbacks = null;
 
@@ -787,11 +794,16 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
     @SuppressLint("MissingPermission")
     @Override
     public void printerObserverCallback(PrinterInterface printerInterface, int state) {
-        JSObject deviceJSON = printerInterface != null ? new JSObject() {{
-            BluetoothEdrConfigBean config = ((BluetoothEdrConfigBean)printerInterface.getConfigObject());
-            put("address", config.mBluetoothDevice.getAddress());
-            put("name", config.mBluetoothDevice.getName());
-        }}: null;
+        JSObject deviceJSON =
+            printerInterface != null
+                ? new JSObject() {
+                      {
+                          BluetoothEdrConfigBean config = ((BluetoothEdrConfigBean) printerInterface.getConfigObject());
+                          put("address", config.mBluetoothDevice.getAddress());
+                          put("name", config.mBluetoothDevice.getName());
+                      }
+                  }
+                : null;
 
         Log.d(TAG, "STATE CHANGE " + state);
         switch (state) {
