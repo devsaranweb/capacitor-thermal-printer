@@ -27,6 +27,10 @@ export interface BluetoothDevice {
     majorClass: 'IMAGING' | 'UNCATEGORIZED';
 }
 export interface BluetoothScanResult {
+    /**
+     * Upper bound after which a caller may stop the scan. The native
+     * `discoveryFinish` event is the normal end of discovery.
+     */
     timeoutMs: number;
 }
 export interface CapacitorThermalPrinterPlugin {

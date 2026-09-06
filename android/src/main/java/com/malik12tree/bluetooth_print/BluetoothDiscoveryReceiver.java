@@ -48,6 +48,7 @@ final class BluetoothDiscoveryReceiver extends BroadcastReceiver {
         if (bluetoothClass == null) return "UNCATEGORIZED";
         int majorClass = bluetoothClass.getMajorDeviceClass();
         if (majorClass == BluetoothClass.Device.Major.IMAGING) return "IMAGING";
-        return "UNCATEGORIZED";
+        if (majorClass == BluetoothClass.Device.Major.UNCATEGORIZED) return "UNCATEGORIZED";
+        return null;
     }
 }

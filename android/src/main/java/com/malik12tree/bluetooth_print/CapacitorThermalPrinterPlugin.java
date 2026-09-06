@@ -71,7 +71,7 @@ import org.json.JSONException;
 public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObserver {
 
     private static final String TAG = "CapacitorThermalPrinterPlugin";
-    private static final int ANDROID_DISCOVERY_TIMEOUT_MS = 12000;
+    private static final int DISCOVERY_FAILSAFE_TIMEOUT_MS = 30000;
     static final List<String> alignments = Arrays.asList("left", "center", "right");
     static final List<String> fonts = Arrays.asList("A", "B");
     static final List<String> placements = Arrays.asList("none", "above", "below", "both");
@@ -201,7 +201,7 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
 
         if (mBluetoothAdapter.startDiscovery()) {
             JSObject result = new JSObject();
-            result.put("timeoutMs", ANDROID_DISCOVERY_TIMEOUT_MS);
+            result.put("timeoutMs", DISCOVERY_FAILSAFE_TIMEOUT_MS);
             call.resolve(result);
         } else {
             unregisterReceiverQuietly();
