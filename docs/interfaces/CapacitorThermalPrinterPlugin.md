@@ -55,6 +55,22 @@
 
 ***
 
+### isBluetoothEnabled()
+
+> **isBluetoothEnabled**(): `Promise`\<`object`\>
+
+Reports whether the device Bluetooth radio is currently enabled.
+
+#### Returns
+
+`Promise`\<`object`\>
+
+##### enabled
+
+> **enabled**: `boolean`
+
+***
+
 ### isConnected()
 
 > **isConnected**(): `Promise`\<`boolean`\>

@@ -10,7 +10,7 @@ import RTPrinterSDK
  * here: https://capacitorjs.com/docs/plugins/ios
  */
 @objc(CapacitorThermalPrinterPlugin)
-public class CapacitorThermalPrinterPlugin: CAPPlugin {
+public class CapacitorThermalPrinterPlugin: CAPPlugin, CBCentralManagerDelegate {
     let fonts = ["A", "B"];
     let alignments = ["left", "center", "right"];
     let placements = ["none", "above", "below", "both"];
@@ -37,6 +37,8 @@ public class CapacitorThermalPrinterPlugin: CAPPlugin {
 
     let manager: PrinterManager = PrinterManager.createESC();
     let blueToothPI = BlueToothFactory.create(BlueToothKind_Ble)!
+    private var bluetoothStateManager: CBCentralManager?
+    private var bluetoothStateCalls: [CAPPluginCall] = []
     
     var cmd = ESCCmd();
     var textSetting = TextSetting();
@@ -151,6 +153,38 @@ public class CapacitorThermalPrinterPlugin: CAPPlugin {
 
         discoveryFinish?.perform()
         call.resolve()
+    }
+
+    @objc func isBluetoothEnabled(_ call: CAPPluginCall) {
+        if bluetoothStateManager == nil {
+            bluetoothStateCalls.append(call)
+            bluetoothStateManager = CBCentralManager(
+                delegate: self,
+                queue: nil,
+                options: [CBCentralManagerOptionShowPowerAlertKey: false]
+            )
+            return
+        }
+        if bluetoothStateManager?.state == .unknown {
+            bluetoothStateCalls.append(call)
+            return
+        }
+
+        resolveBluetoothState(call)
+    }
+
+    public func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        let calls = bluetoothStateCalls
+        bluetoothStateCalls.removeAll()
+        for call in calls {
+            resolveBluetoothState(call)
+        }
+    }
+
+    private func resolveBluetoothState(_ call: CAPPluginCall) {
+        call.resolve([
+            "enabled": bluetoothStateManager?.state == .poweredOn
+        ])
     }
 
     @objc func isConnected(_ call: CAPPluginCall) {

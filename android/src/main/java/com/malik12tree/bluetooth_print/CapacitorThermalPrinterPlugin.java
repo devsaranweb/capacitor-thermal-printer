@@ -124,6 +124,27 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
         Log.d(TAG, "Loading Bluetooth Permissions: " + bluetoothPermissions);
     }
 
+    @SuppressLint("MissingPermission")
+    @PluginMethod
+    public void isBluetoothEnabled(PluginCall call) {
+        if (bluetoothManager == null) {
+            bluetoothManager = (BluetoothManager) getContext().getSystemService(Context.BLUETOOTH_SERVICE);
+            mBluetoothAdapter = bluetoothManager == null ? null : bluetoothManager.getAdapter();
+        }
+
+        boolean enabled = false;
+        try {
+            enabled = mBluetoothAdapter != null && mBluetoothAdapter.isEnabled();
+        } catch (SecurityException ignored) {
+            // Reading the radio state can be permission-gated by an OEM. The
+            // discovery caller treats false as unavailable and does not scan.
+        }
+
+        JSObject result = new JSObject();
+        result.put("enabled", enabled);
+        call.resolve(result);
+    }
+
     @Override
     protected void handleOnDestroy() {
         super.handleOnDestroy();

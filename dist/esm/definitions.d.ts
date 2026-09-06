@@ -53,6 +53,14 @@ export interface CapacitorThermalPrinterPlugin {
      */
     disconnect(): Promise<void>;
     /**
+     * Reports whether the device Bluetooth radio is currently enabled.
+     *
+     * @category Connectivity
+     */
+    isBluetoothEnabled(): Promise<{
+        enabled: boolean;
+    }>;
+    /**
      * @category Connectivity
      */
     isConnected(): Promise<boolean>;

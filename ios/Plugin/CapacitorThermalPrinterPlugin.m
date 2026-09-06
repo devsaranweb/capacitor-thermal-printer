@@ -6,6 +6,7 @@
 CAP_PLUGIN(CapacitorThermalPrinterPlugin, "CapacitorThermalPrinter",
            CAP_PLUGIN_METHOD(startScan, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(stopScan, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(isBluetoothEnabled, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(isConnected, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(connect, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(disconnect, CAPPluginReturnPromise);
