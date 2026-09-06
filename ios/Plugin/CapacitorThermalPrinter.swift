@@ -144,7 +144,7 @@ public class CapacitorThermalPrinterPlugin: CAPPlugin {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 30, execute: discoveryFinish!);
         
-        call.resolve()
+        call.resolve(["timeoutMs": 30000])
     }
     @objc func stopScan(_ call: CAPPluginCall) {
         blueToothPI.stopScan()

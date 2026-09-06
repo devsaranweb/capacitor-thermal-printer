@@ -3,7 +3,6 @@ package com.malik12tree.bluetooth_print;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
@@ -53,7 +52,9 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.json.JSONException;
 
 @CapacitorPlugin(
@@ -70,6 +71,7 @@ import org.json.JSONException;
 public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObserver {
 
     private static final String TAG = "CapacitorThermalPrinterPlugin";
+    private static final int ANDROID_DISCOVERY_TIMEOUT_MS = 12000;
     static final List<String> alignments = Arrays.asList("left", "center", "right");
     static final List<String> fonts = Arrays.asList("A", "B");
     static final List<String> placements = Arrays.asList("none", "above", "below", "both");
@@ -82,6 +84,7 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
     ArrayList<String> bluetoothPermissions = new ArrayList<>();
 
     ArrayList<BluetoothDevice> devices = new ArrayList<>();
+    Map<String, String> deviceMajorClasses = new HashMap<>();
     private RTPrinter rtPrinter = null;
     BluetoothEdrConfigBean bluetoothEdrConfigBean = null;
     BroadcastReceiver mBluetoothReceiver = null;
@@ -91,47 +94,6 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
     TextSetting textSetting = new TextSetting();
     BitmapSetting bitmapSetting = new BitmapSetting();
     BarcodeSetting dataCodeSetting = new BarcodeSetting();
-
-    private class BluetoothDeviceReceiver extends BroadcastReceiver {
-
-        @SuppressLint("MissingPermission")
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            // When discovery finds a device
-            if (BluetoothDevice.ACTION_FOUND.equals(action)) {
-                // Get the BluetoothDevice object from the Intent
-                BluetoothDevice device = null;
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                    device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class);
-                } else {
-                    device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                }
-                if (device == null) return;
-                int devType = device.getBluetoothClass().getMajorDeviceClass();
-                if (devType != BluetoothClass.Device.Major.IMAGING) {
-                    return;
-                }
-
-                if (!devices.contains(device)) {
-                    devices.add(device);
-                }
-
-                CapacitorThermalPrinterPlugin.this.notifyListeners(
-                    "discoverDevices",
-                    new JSObject() {
-                        {
-                            put("devices", getJsonDevices());
-                        }
-                    }
-                );
-            } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-                notifyListeners("discoveryFinish", null);
-                mBluetoothAdapter.cancelDiscovery();
-                unregisterReceiverQuietly();
-            }
-        }
-    }
 
     public CapacitorThermalPrinterPlugin() {
         super();
@@ -200,11 +162,37 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
         }
 
         devices = new ArrayList<>();
+        deviceMajorClasses = new HashMap<>();
 
         // Register BEFORE starting: discovery can deliver its first results
         // within milliseconds, and a receiver registered after the fact misses
         // them. Rolled back below if the start fails.
-        mBluetoothReceiver = new BluetoothDeviceReceiver();
+        mBluetoothReceiver = new BluetoothDiscoveryReceiver(
+            new BluetoothDiscoveryReceiver.Listener() {
+                @Override
+                public void onDevice(BluetoothDevice device, String majorClass) {
+                    if (!devices.contains(device)) {
+                        devices.add(device);
+                    }
+                    deviceMajorClasses.put(device.getAddress(), majorClass);
+                    CapacitorThermalPrinterPlugin.this.notifyListeners(
+                        "discoverDevices",
+                        new JSObject() {
+                            {
+                                put("devices", getJsonDevices());
+                            }
+                        }
+                    );
+                }
+
+                @Override
+                public void onFinished() {
+                    notifyListeners("discoveryFinish", null);
+                    mBluetoothAdapter.cancelDiscovery();
+                    unregisterReceiverQuietly();
+                }
+            }
+        );
         IntentFilter mBluetoothIntentFilter = new IntentFilter();
         mBluetoothIntentFilter.addAction(BluetoothDevice.ACTION_FOUND);
         mBluetoothIntentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
@@ -212,7 +200,9 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
         mRegistered = true;
 
         if (mBluetoothAdapter.startDiscovery()) {
-            call.resolve();
+            JSObject result = new JSObject();
+            result.put("timeoutMs", ANDROID_DISCOVERY_TIMEOUT_MS);
+            call.resolve(result);
         } else {
             unregisterReceiverQuietly();
             boolean locationOff = Build.VERSION.SDK_INT < Build.VERSION_CODES.S && !isLocationEnabled();
@@ -783,6 +773,7 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
                     {
                         put("name", device.getName());
                         put("address", device.getAddress());
+                        put("majorClass", deviceMajorClasses.getOrDefault(device.getAddress(), "UNCATEGORIZED"));
                     }
                 }
             );

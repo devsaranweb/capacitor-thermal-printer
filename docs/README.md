@@ -7,6 +7,7 @@
 ## Interfaces
 
 - [BluetoothDevice](interfaces/BluetoothDevice.md)
+- [BluetoothScanResult](interfaces/BluetoothScanResult.md)
 - [CapacitorThermalPrinterPlugin](interfaces/CapacitorThermalPrinterPlugin.md)
 
 ## Type Aliases

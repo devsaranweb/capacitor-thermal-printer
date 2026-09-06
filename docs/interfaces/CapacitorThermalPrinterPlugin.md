@@ -10,11 +10,11 @@
 
 ### startScan()
 
-> **startScan**(): `Promise`\<`void`\>
+> **startScan**(): `Promise`\<[`BluetoothScanResult`](BluetoothScanResult.md)\>
 
 #### Returns
 
-`Promise`\<`void`\>
+`Promise`\<[`BluetoothScanResult`](BluetoothScanResult.md)\>
 
 ***
 

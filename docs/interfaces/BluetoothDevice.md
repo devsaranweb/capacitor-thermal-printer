@@ -12,3 +12,4 @@
 | ------ | ------ |
 | `name` | `string` |
 | `address` | `string` |
+| `majorClass` | `"IMAGING"` \| `"UNCATEGORIZED"` |

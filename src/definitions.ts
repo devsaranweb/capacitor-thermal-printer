@@ -27,13 +27,18 @@ export type Base64Encodable = string | Blob | BufferSource | number[];
 export interface BluetoothDevice {
   name: string;
   address: string;
+  majorClass: 'IMAGING' | 'UNCATEGORIZED';
+}
+
+export interface BluetoothScanResult {
+  timeoutMs: number;
 }
 
 export interface CapacitorThermalPrinterPlugin {
   /**
    * @category Connectivity
    */
-  startScan(): Promise<void>;
+  startScan(): Promise<BluetoothScanResult>;
   /**
    * @category Connectivity
    */
