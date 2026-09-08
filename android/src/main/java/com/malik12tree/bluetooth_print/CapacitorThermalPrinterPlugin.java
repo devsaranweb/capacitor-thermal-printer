@@ -795,6 +795,13 @@ public class CapacitorThermalPrinterPlugin extends Plugin implements PrinterObse
                         put("name", device.getName());
                         put("address", device.getAddress());
                         put("majorClass", deviceMajorClasses.getOrDefault(device.getAddress(), "UNCATEGORIZED"));
+                        // Already paired with this device. The class filter is
+                        // deliberately wide so cheap unclassified printers are
+                        // findable, which means an ordinary scan also returns a
+                        // tail of unnamed BLE advertisers; without this flag the
+                        // operator's OWN printer is indistinguishable from a
+                        // passing phone in a list of bare MAC addresses.
+                        put("bonded", device.getBondState() == BluetoothDevice.BOND_BONDED);
                     }
                 }
             );

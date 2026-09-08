@@ -28,6 +28,14 @@ export interface BluetoothDevice {
   name: string;
   address: string;
   majorClass: 'IMAGING' | 'UNCATEGORIZED';
+  /**
+   * Whether the device is already paired with this Android device.
+   *
+   * Absent on builds before v0.3.6 and on iOS, where the pairing table is not
+   * exposed to an app. A consumer must treat absence as "unknown", never as
+   * "not paired with anything".
+   */
+  bonded?: boolean;
 }
 
 export interface BluetoothScanResult {
